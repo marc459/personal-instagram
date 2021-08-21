@@ -1,0 +1,28 @@
+{
+  "compilerOptions": {
+    "allowJs": true,
+    "target": "es2017",
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "removeComments": true,
+    "noEmitOnError": true,
+    "baseUrl": "./",
+    "sourceMap": false,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "noUnusedLocals": true,
+    "strictNullChecks": true,
+    "outDir": "./dist"
+  },
+  "exclude": [
+    ".vscode-test"
+  ],
+  "typeRoots": [
+    "node_modules/@types",
+    "src/types",
+    "src2/types"
+  ],
+  "include": [
+    "./src/**/*"
+  ]
+}
