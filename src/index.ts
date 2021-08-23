@@ -1,7 +1,12 @@
 import dotenv from 'dotenv';
+import {
+  highlightsTest,
+  resetProfileAvatar,
+  setFridayProfileAvatar,
+  uploadHistory
+} from './lib/cli';
 import Instagram from './lib/instagram';
 import logger from './util/logger';
-
 // Load .env environment values.
 dotenv.config();
 
@@ -18,25 +23,20 @@ instagram.on('loggedIn', async () => {
   for (let i = 2; i < process.argv.length; i++) {
     const arg = process.argv[i];
     switch (arg) {
-      case '--set-friday-pic':
-        logger.debug('Generating friday profile picture...');
-        const fridayProfilePic = await instagram.generateFridayProfilePic(
-          instagram.user.username
-        );
-        try {
-          await instagram.ig.account.changeProfilePicture(fridayProfilePic);
-          logger.info(`Successfully changed to the friday's avatar!`);
-        } catch (error) {
-          logger.error(error.message);
-        }
+      case '--set-friday-profile-avatar':
+        await setFridayProfileAvatar(instagram);
         break;
-      case '--a':
-        console.log('a');
+      case '--reset-profile-avatar':
+        await resetProfileAvatar(instagram);
         break;
-      case '--b':
-        console.log('b');
+      case '--upload-history':
+        await uploadHistory(instagram);
+        break;
+      case '--highlights':
+        await highlightsTest(instagram);
         break;
       default:
+        logger.warn(`${arg} argument not found!`);
         break;
     }
   }

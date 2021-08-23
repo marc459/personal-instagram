@@ -11,7 +11,7 @@
             "runtimeExecutable": "node",
             "runtimeArgs": ["--nolazy", "-r", "ts-node/register/transpile-only"],
       
-            "args": ["src/index.ts"],
+            "args": ["src/index.ts", "--", "--highlights"],
             
             "cwd": "${workspaceRoot}",
             "internalConsoleOptions": "openOnSessionStart",

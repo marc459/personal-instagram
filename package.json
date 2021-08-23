@@ -23,14 +23,17 @@
     "color": "^4.0.1",
     "dotenv": "^10.0.0",
     "instagram-private-api": "^1.45.1",
+    "instagram_mqtt": "^1.2.1",
     "lodash": "^4.17.21",
+    "moment": "^2.29.1",
     "sharp": "^0.29.0",
+    "twemoji-parser": "^13.1.0",
     "winston": "^3.3.3"
   },
   "devDependencies": {
+    "@types/color": "^3.0.2",
     "@types/lodash": "^4.14.172",
     "@types/node": "^16.7.1",
-    "@types/color": "^3.0.2",
     "@types/sharp": "^0.28.5",
     "@types/winston": "^2.4.4",
     "@typescript-eslint/eslint-plugin": "^4.29.2",

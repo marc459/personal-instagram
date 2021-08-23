@@ -4,14 +4,19 @@ import request from 'request';
 import sharp, { Metadata } from 'sharp';
 import getImagePalette from './palette';
 
-export const getImageBuffer = function (url: string): Promise<Buffer> {
+export const getImageBuffer = function (
+  url: string,
+  density = 72
+): Promise<Buffer> {
   return new Promise(async (resolve, reject) => {
     try {
       request.get({ url, encoding: null }, async (err, res, body) => {
         if (res.statusCode !== 200) {
           throw Error(res.statusMessage);
         }
-        resolve(await sharp(body).toFormat('png').toBuffer());
+        resolve(
+          await sharp(body, { density: density }).toFormat('png').toBuffer()
+        );
       });
     } catch (error) {
       reject(error);
@@ -39,6 +44,25 @@ export const getImageColors = function (
 };
 
 export const blurImage = function (
+  url: Buffer | string,
+  sigma: number
+): Promise<Buffer> {
+  return new Promise(async (resolve, reject) => {
+    try {
+      let buffer;
+      if (typeof url === 'string') {
+        buffer = await getImageBuffer(url);
+      } else {
+        buffer = url;
+      }
+      resolve(await sharp(buffer).blur(sigma).toBuffer());
+    } catch (error) {
+      reject(error);
+    }
+  });
+};
+
+export const filterImageColor = function (
   url: Buffer | string,
   sigma: number
 ): Promise<Buffer> {

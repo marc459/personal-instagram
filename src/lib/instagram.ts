@@ -1,9 +1,4 @@
-import {
-  createCanvas,
-  loadImage,
-  NodeCanvasRenderingContext2D,
-  registerFont
-} from 'canvas';
+import { createCanvas, loadImage, registerFont } from 'canvas';
 import { exec } from 'child_process';
 import EventEmitter from 'events';
 import {
@@ -11,6 +6,12 @@ import {
   IgApiClient,
   IgLoginTwoFactorRequiredError
 } from 'instagram-private-api';
+import {
+  withFbnsAndRealtime,
+  IgApiClientMQTT,
+  GraphQLSubscriptions,
+  SkywalkerSubscriptions
+} from 'instagram_mqtt';
 import { resolve } from 'path';
 import sharp from 'sharp';
 import {
@@ -24,17 +25,74 @@ import { HandleSession } from './session';
 
 class Instagram extends EventEmitter {
   readonly config: ConnectionParams;
-  public ig: IgApiClient;
+  public ig: IgApiClientMQTT;
   public sessionHandlerInstance: HandleSession;
   public user: AccountRepositoryCurrentUserResponseUser;
 
   constructor(config: ConnectionParams) {
     super();
-    logger.debug('Initializing IgApiClient...');
-    this.ig = new IgApiClient();
+    logger.debug('Initializing IgApiClientMQTT...');
+    this.ig = withFbnsAndRealtime(new IgApiClient());
     this.sessionHandlerInstance = new HandleSession();
     logger.debug('IgApiClient has been initialized!');
     this.login(config);
+  }
+
+  private async listenEvents() {
+    this.ig.realtime.on('receive', (topic, messages) =>
+      console.log('receive', topic, messages)
+    );
+
+    // this is called with a wrapper use {message} to only get the "actual" message from the wrapper
+    this.ig.realtime.on('message', ({ message }) => {
+      console.log('messageWrapper', message);
+    });
+
+    // a thread is updated, e.g. admins/members added/removed
+    this.ig.realtime.on('threadUpdate', (data) => {
+      console.log('threadUpdateWrapper', JSON.stringify(data));
+    });
+
+    // other direct messages - no messages
+    this.ig.realtime.on('direct', (data) => {
+      console.log('direct', JSON.stringify(data));
+    });
+
+    // whenever something gets sent to /ig_realtime_sub and has no event, this is called
+    this.ig.realtime.on('realtimeSub', ({ data }) => {
+      console.log('realtimeSub', data.message);
+    });
+
+    // whenever the client has a fatal error
+    this.ig.realtime.on('error', console.error);
+
+    this.ig.realtime.on('close', () => console.error('RealtimeClient closed'));
+
+    // connect
+    // this will resolve once all initial subscriptions have been sent
+    await this.ig.realtime.connect({
+      // optional
+      graphQlSubs: [
+        // these are some subscriptions
+        GraphQLSubscriptions.getAppPresenceSubscription(),
+        GraphQLSubscriptions.getZeroProvisionSubscription(
+          this.ig.state.phoneId
+        ),
+        GraphQLSubscriptions.getDirectStatusSubscription(),
+        GraphQLSubscriptions.getDirectTypingSubscription(
+          this.ig.state.cookieUserId
+        ),
+        GraphQLSubscriptions.getAsyncAdSubscription(this.ig.state.cookieUserId)
+      ],
+      // optional
+      skywalkerSubs: [
+        SkywalkerSubscriptions.directSub(this.ig.state.cookieUserId),
+        SkywalkerSubscriptions.liveSub(this.ig.state.cookieUserId)
+      ],
+      // optional
+      // this enables you to get direct messages
+      irisData: await this.ig.feed.directInbox().request()
+    });
   }
 
   private async login(config: ConnectionParams) {
@@ -65,6 +123,7 @@ class Instagram extends EventEmitter {
         await this.ig.account.login(config.username, config.password);
       }
       this.user = await this.ig.account.currentUser();
+      await this.listenEvents();
       super.emit('loggedIn');
     } catch (error) {
       if (error instanceof IgLoginTwoFactorRequiredError) {
@@ -84,6 +143,7 @@ class Instagram extends EventEmitter {
           verificationMethod
         });
         this.user = await this.ig.account.currentUser();
+        await this.listenEvents();
         super.emit('loggedIn');
       }
       this.emit('error', error.message);
@@ -103,29 +163,6 @@ class Instagram extends EventEmitter {
   }
 
   public async generateFridayProfilePic(username: string): Promise<Buffer> {
-    function drawTextAlongArc(
-      context: NodeCanvasRenderingContext2D,
-      str,
-      centerX,
-      centerY,
-      radius,
-      angle
-    ) {
-      const len = str.length;
-      context.save();
-      context.translate(centerX, centerY);
-      context.rotate((-1 * angle) / 2);
-      context.rotate((-1 * (angle / len)) / 2);
-      for (let n = 0; n < len; n++) {
-        context.rotate(angle / len);
-        context.save();
-        context.translate(0, -1 * radius);
-        context.fillText(str[n], 0, 0);
-        context.restore();
-      }
-      context.restore();
-    }
-
     return new Promise(async (_resolve, reject) => {
       try {
         const profilePic = await this.getProfilePic(username).then(
@@ -140,20 +177,19 @@ class Instagram extends EventEmitter {
                 __dirname,
                 '..',
                 'fonts',
-                'Lovelo',
-                'Lovelo-LineBold.woff'
+                'Solena',
+                'Solena-Regular.woff'
               ),
-              { family: 'Lovelo' }
+              { family: 'Solena' }
             );
             const canvas = createCanvas(width!, height!);
             const ctx = canvas.getContext('2d');
             ctx.drawImage(await loadImage(blurredImage), 0, 0);
-            ctx.font = '150px Lovelo';
+            ctx.font = '200px Solena';
             ctx.textAlign = 'center';
             ctx.fillStyle = result.color;
             ctx.lineWidth = 4;
-            drawTextAlongArc(
-              ctx,
+            ctx.drawTextAlongArc(
               'Feliz viernes!',
               canvas.width / 2,
               canvas.height / 2,
@@ -165,6 +201,89 @@ class Instagram extends EventEmitter {
           .catch((err) => {
             logger.error(err.stack);
           });
+      } catch (error) {
+        reject(error.message);
+      }
+    });
+  }
+
+  public async generateHighlightCover(
+    color: Palette,
+    emoticon: string,
+    counter?: number
+  ): Promise<Buffer> {
+    return new Promise(async (_resolve, reject) => {
+      try {
+        registerFont(
+          resolve(__dirname, '..', 'fonts', 'Solena', 'Solena-Regular.woff'),
+          { family: 'Solena' }
+        );
+        const canvas = createCanvas(800, 800);
+        const ctx = canvas.getContext('2d');
+        ctx.beginPath();
+        ctx.arc(
+          canvas.width / 2,
+          canvas.height / 2,
+          canvas.width / 2,
+          0,
+          Math.PI * 2
+        );
+        ctx.fillStyle = color.backgroundColor;
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(
+          canvas.width / 2,
+          canvas.height / 2,
+          canvas.width / 2.5,
+          0,
+          2 * Math.PI
+        );
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = color.color;
+        ctx.stroke();
+        ctx.closePath();
+        if (typeof counter !== 'undefined') {
+          ctx.font = '225px Solena';
+          ctx.textAlign = 'center';
+          ctx.fillStyle = color.color;
+          ctx.lineWidth = 4;
+          ctx.fillText(`#${counter}`, canvas.width / 2, canvas.height / 3);
+        }
+        ctx.beginPath();
+        ctx.rect(
+          0,
+          canvas.height / 2,
+          (canvas.width - (canvas.width / 2.5) * 2) / 2,
+          1
+        );
+        ctx.rect(
+          canvas.width - (canvas.width - (canvas.width / 2.5) * 2) / 2,
+          canvas.height / 2,
+          (canvas.width - (canvas.width / 2.5) * 2) / 2,
+          1
+        );
+        ctx.strokeStyle = color.color;
+        ctx.stroke();
+        ctx.closePath();
+        ctx.textAlign = 'center';
+        ctx.fillStyle = color.color;
+        ctx.font = `${canvas.width / 2}px san-serif`;
+        if (typeof counter !== 'undefined') {
+          await ctx.drawTextWithEmoji(
+            'fill',
+            emoticon,
+            canvas.width / 2,
+            canvas.height / 2 + canvas.height / 10
+          );
+        } else {
+          await ctx.drawTextWithEmoji(
+            'fill',
+            emoticon,
+            canvas.width / 2,
+            canvas.height / 2
+          );
+        }
+        _resolve(await sharp(canvas.toBuffer()).jpeg().toBuffer());
       } catch (error) {
         reject(error.message);
       }
