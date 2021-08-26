@@ -123,7 +123,7 @@ class Instagram extends EventEmitter {
         await this.ig.account.login(config.username, config.password);
       }
       this.user = await this.ig.account.currentUser();
-      await this.listenEvents();
+      // await this.listenEvents();
       super.emit('loggedIn');
     } catch (error) {
       if (error instanceof IgLoginTwoFactorRequiredError) {
@@ -178,7 +178,7 @@ class Instagram extends EventEmitter {
                 '..',
                 'fonts',
                 'Solena',
-                'Solena-Regular.woff'
+                'Solena-Regular.ttf'
               ),
               { family: 'Solena' }
             );
@@ -189,7 +189,7 @@ class Instagram extends EventEmitter {
             ctx.textAlign = 'center';
             ctx.fillStyle = result.color;
             ctx.lineWidth = 4;
-            ctx.drawTextAlongArc(
+            await ctx.drawTextAlongArc(
               'Feliz viernes!',
               canvas.width / 2,
               canvas.height / 2,
@@ -215,7 +215,7 @@ class Instagram extends EventEmitter {
     return new Promise(async (_resolve, reject) => {
       try {
         registerFont(
-          resolve(__dirname, '..', 'fonts', 'Solena', 'Solena-Regular.woff'),
+          resolve(__dirname, '..', 'fonts', 'Solena', 'Solena-Regular.ttf'),
           { family: 'Solena' }
         );
         const canvas = createCanvas(800, 800);
