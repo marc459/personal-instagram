@@ -1,5 +1,5 @@
 import { LoggerOptions, createLogger, format, transports } from 'winston';
-const { combine, colorize, timestamp, printf, simple, json } = format;
+const { combine, colorize, timestamp, printf, simple, align } = format;
 
 const options: LoggerOptions = {
   transports: [
@@ -17,12 +17,12 @@ const options: LoggerOptions = {
       )
     }),
     new transports.File({
-			filename: 'logs/combined.log',
-			maxsize: 50000000, // 15MB,
-      level: "debug",
-			maxFiles: 1,
-			format: combine(timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }), json())
-		})
+      filename: 'logs/combined.log',
+      maxsize: 50000000, // 15MB,
+      level: 'debug',
+      maxFiles: 1,
+      format: combine(timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }), align(), printf(info => `${info.level}: ${[info.timestamp]}: ${info.message}`))
+    })
   ]
 };
 
