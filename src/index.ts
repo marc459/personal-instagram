@@ -1,6 +1,6 @@
 import dotenv from 'dotenv';
 import {
-  highlightsTest,
+  highlights,
   resetProfileAvatar,
   setFridayProfileAvatar,
   uploadHistory
@@ -33,7 +33,7 @@ instagram.on('loggedIn', async () => {
         await uploadHistory(instagram);
         break;
       case '--highlights':
-        await highlightsTest(instagram);
+        await highlights(instagram);
         break;
       default:
         logger.warn(`${arg} argument not found!`);

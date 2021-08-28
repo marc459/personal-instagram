@@ -5,6 +5,7 @@ import { getImageBuffer, getImageColors } from '../util/image';
 import logger from '../util/logger';
 import Instagram from './instagram';
 import highlightData from '../../data/highlights.json';
+import compareImages from "resemblejs/compareImages";
 
 export const setFridayProfileAvatar = async function (
   instagram: Instagram
@@ -135,10 +136,10 @@ export const feedTest = async function (instagram: Instagram): Promise<void> {
   }
 };
 
-export const highlightsTest = async function (
+export const highlights = async function (
   instagram: Instagram
 ): Promise<void> {
-  logger.debug('Getting last 3 feed pictures...');
+  logger.debug('Getting highlights...');
   try {
     const highlights = await instagram.ig.highlights.highlightsTray(
       instagram.ig.state.cookieUserId
@@ -152,43 +153,59 @@ export const highlightsTest = async function (
       const t = highlights.tray[i];
       const data = highlightData.find((d) => d.id === t.id);
       if (typeof data !== 'undefined') {
-        logger.debug('Setting new highlight cover...');
+        logger.debug(`Generating new ${t.title} highlight cover...`);
         let number;
         if (/Friday #([0-9]+)/g.exec(t.title) !== null) {
           number = parseInt(/Friday #([0-9]+)/g.exec(t.title)![1]);
         }
-        const { upload_id } = await instagram.ig.upload.photo({
-          file: await instagram.generateHighlightCover(
-            profileColor,
-            data.emoticon,
-            typeof number === 'number' ? number + 1 : undefined
-          )
+        const cloudImgBuffer = await getImageBuffer(t.cover_media.cropped_image_version.url);
+        const localImgBuffer = await instagram.generateHighlightCover(
+          profileColor,
+          data.emoticon,
+          typeof number === 'number' ? number + (typeof process.env.NODE_FRIDAY_CRON === "string" ? 1 : 0) : undefined
+        );
+        const compareResult = await compareImages(cloudImgBuffer, localImgBuffer, {
+          scaleToSameSize: true,
+          ignore: "antialiasing"
         });
-        await instagram.ig.request.send({
-          url: `/api/v1/highlights/${t.id}/edit_reel/`,
-          method: 'POST',
-          form: instagram.ig.request.sign({
-            supported_capabilities_new: JSON.stringify(
-              instagram.ig.state.supportedCapabilities
-            ),
-            source: 'story_viewer_default',
-            added_media_ids: '[]',
-            _csrftoken: instagram.ig.state.cookieCsrfToken,
-            _uid: instagram.ig.state.cookieUserId,
-            _uuid: instagram.ig.state.uuid,
-            cover: JSON.stringify({
-              upload_id,
-              crop_rect: '[0.0,0.0,1.0,1.0]'
-            }),
-            title:
-              typeof number === 'number'
-                ? data.title.replace('{COUNTER}', (number + 1).toString())
-                : data.title,
-            removed_media_ids: '[]'
-          })
-        });
-        logger.debug('Highlight cover set successfully...');
-        await delay(Math.floor(Math.random() * 6000) + 2000);
+        // Check if Images are different
+        if (compareResult.rawMisMatchPercentage > 0) {
+          logger.debug(`${t.title} highlight cover has ${compareResult.rawMisMatchPercentage}% difference. Updating...`)
+          const { upload_id } = await instagram.ig.upload.photo({
+            file: await instagram.generateHighlightCover(
+              profileColor,
+              data.emoticon,
+              typeof number === 'number' ? number + (typeof process.env.NODE_FRIDAY_CRON === "string" ? 1 : 0) : undefined
+            )
+          });
+          await instagram.ig.request.send({
+            url: `/api/v1/highlights/${t.id}/edit_reel/`,
+            method: 'POST',
+            form: instagram.ig.request.sign({
+              supported_capabilities_new: JSON.stringify(
+                instagram.ig.state.supportedCapabilities
+              ),
+              source: 'story_viewer_default',
+              added_media_ids: '[]',
+              _csrftoken: instagram.ig.state.cookieCsrfToken,
+              _uid: instagram.ig.state.cookieUserId,
+              _uuid: instagram.ig.state.uuid,
+              cover: JSON.stringify({
+                upload_id,
+                crop_rect: '[0.0,0.0,1.0,1.0]'
+              }),
+              title:
+                typeof number === 'number'
+                  ? data.title.replace('{COUNTER}', (number + (typeof process.env.NODE_FRIDAY_CRON === "string" ? 1 : 0)).toString())
+                  : data.title,
+              removed_media_ids: '[]'
+            })
+          });
+          logger.debug('Highlight cover set successfully...');
+          await delay(Math.floor(Math.random() * 6000) + 2000);
+        } else {
+          logger.debug(`${t.title} highlight cover has same result as new. Skipping update...`)
+        }
       }
     }
   } catch (error) {
