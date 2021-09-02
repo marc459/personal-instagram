@@ -1,3 +1,5 @@
+import { AccountFollowersFeedResponseUsersItem } from 'instagram-private-api';
+
 export {};
 
 declare global {
@@ -13,5 +15,11 @@ declare global {
   interface Intranet {
     on(event: 'error', listener: (error: Error) => void): this;
     on(event: 'loggedIn', listener: () => void): this;
+  }
+}
+
+declare module 'instagram-private-api/dist/repositories/friendship.repository' {
+  interface FriendshipRepository {
+    leastInteractedWith(): Promise<AccountFollowersFeedResponseUsersItem[]>;
   }
 }

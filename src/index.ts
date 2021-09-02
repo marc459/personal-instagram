@@ -1,9 +1,11 @@
 import dotenv from 'dotenv';
 import {
+  followers,
   highlights,
   resetProfileAvatar,
   setFridayProfileAvatar,
-  uploadHistory
+  uploadHistory,
+  listenEvents
 } from './lib/cli';
 import Instagram from './lib/instagram';
 import logger from './util/logger';
@@ -34,6 +36,12 @@ instagram.on('loggedIn', async () => {
         break;
       case '--highlights':
         await highlights(instagram);
+        break;
+      case '--followers':
+        await followers(instagram);
+        break;
+      case '--listen-events':
+        await listenEvents(instagram);
         break;
       default:
         logger.warn(`${arg} argument not found!`);

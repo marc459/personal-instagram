@@ -2,6 +2,7 @@ import { createCanvas, loadImage, registerFont } from 'canvas';
 import { exec } from 'child_process';
 import EventEmitter from 'events';
 import {
+  AccountFollowersFeedResponseUsersItem,
   AccountRepositoryCurrentUserResponseUser,
   IgApiClient,
   IgLoginTwoFactorRequiredError
@@ -22,51 +23,60 @@ import {
 } from '../util/image';
 import logger from '../util/logger';
 import { HandleSession } from './session';
+import { createInterface, Interface } from 'readline';
 
 class Instagram extends EventEmitter {
   readonly config: ConnectionParams;
   public ig: IgApiClientMQTT;
   public sessionHandlerInstance: HandleSession;
   public user: AccountRepositoryCurrentUserResponseUser;
+  public std: Interface;
 
   constructor(config: ConnectionParams) {
     super();
+    this.std = createInterface({
+      input: process.stdin,
+      output: process.stdout
+    });
     logger.debug('Initializing IgApiClientMQTT...');
     this.ig = withFbnsAndRealtime(new IgApiClient());
     this.sessionHandlerInstance = new HandleSession();
     logger.debug('IgApiClient has been initialized!');
+    this.ig.friendship.leastInteractedWith = () => this.leastInteractedWith();
     this.login(config);
   }
 
-  private async listenEvents() {
+  public async listenEvents() {
     this.ig.realtime.on('receive', (topic, messages) =>
-      console.log('receive', topic, messages)
+      logger.info(
+        `receive: ${JSON.stringify(topic)} ${JSON.stringify(messages)}`
+      )
     );
 
     // this is called with a wrapper use {message} to only get the "actual" message from the wrapper
     this.ig.realtime.on('message', ({ message }) => {
-      console.log('messageWrapper', message);
+      logger.info(`messageWrapper ${JSON.stringify(message)}`);
     });
 
     // a thread is updated, e.g. admins/members added/removed
     this.ig.realtime.on('threadUpdate', (data) => {
-      console.log('threadUpdateWrapper', JSON.stringify(data));
+      logger.info(`threadUpdateWrapper ${JSON.stringify(data)}`);
     });
 
     // other direct messages - no messages
     this.ig.realtime.on('direct', (data) => {
-      console.log('direct', JSON.stringify(data));
+      logger.info(`direct ${JSON.stringify(data)}`);
     });
 
     // whenever something gets sent to /ig_realtime_sub and has no event, this is called
     this.ig.realtime.on('realtimeSub', ({ data }) => {
-      console.log('realtimeSub', data.message);
+      logger.info(`realtimeSub ${JSON.stringify(data.message)}`);
     });
 
     // whenever the client has a fatal error
-    this.ig.realtime.on('error', console.error);
+    this.ig.realtime.on('error', logger.error);
 
-    this.ig.realtime.on('close', () => console.error('RealtimeClient closed'));
+    this.ig.realtime.on('close', () => logger.error('RealtimeClient closed'));
 
     // connect
     // this will resolve once all initial subscriptions have been sent
@@ -150,6 +160,30 @@ class Instagram extends EventEmitter {
     }
   }
 
+  private async leastInteractedWith(): Promise<
+    AccountFollowersFeedResponseUsersItem[]
+  > {
+    const { body } = await this.ig.request.send({
+      url: `/api/v1/friendships/smart_groups/least_interacted_with/`,
+      method: 'GET',
+      qs: {
+        includes_hashtags: true,
+        search_surface: 'follow_list_page',
+        query: '',
+        enable_groups: true
+      },
+      form: this.ig.request.sign({
+        supported_capabilities_new: JSON.stringify(
+          this.ig.state.supportedCapabilities
+        ),
+        _csrftoken: this.ig.state.cookieCsrfToken,
+        _uid: this.ig.state.cookieUserId,
+        _uuid: this.ig.state.uuid
+      })
+    });
+    return body.users;
+  }
+
   public async getProfilePic(username: string): Promise<string> {
     return new Promise(async (resolve, reject) => {
       try {
@@ -173,13 +207,7 @@ class Instagram extends EventEmitter {
         getImageColors(profilePic)
           .then(async (result) => {
             registerFont(
-              resolve(
-                __dirname,
-                '..',
-                'fonts',
-                'Solena',
-                'Solena-Regular.ttf'
-              ),
+              resolve(__dirname, '..', 'fonts', 'Solena', 'Solena-Regular.ttf'),
               { family: 'Solena' }
             );
             const canvas = createCanvas(width!, height!);

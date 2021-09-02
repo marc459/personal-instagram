@@ -1,5 +1,5 @@
 import { LoggerOptions, createLogger, format, transports } from 'winston';
-const { combine, colorize, timestamp, printf, simple, align } = format;
+const { combine, colorize, timestamp, printf, simple, align, splat } = format;
 
 const options: LoggerOptions = {
   transports: [
@@ -10,6 +10,7 @@ const options: LoggerOptions = {
           message: true
         }),
         simple(),
+        splat(),
         timestamp({ format: 'HH:mm:ss.SSS' }),
         printf(({ message, timestamp }) => {
           return `[${timestamp}] ${message}`;
@@ -21,7 +22,14 @@ const options: LoggerOptions = {
       maxsize: 50000000, // 15MB,
       level: 'debug',
       maxFiles: 1,
-      format: combine(timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }), align(), printf(info => `${info.level}: ${[info.timestamp]}: ${info.message}`))
+      format: combine(
+        timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
+        align(),
+        printf(
+          ({ level, timestamp, message }) =>
+            `${level}: ${[timestamp]}: ${message}`
+        )
+      )
     })
   ]
 };
