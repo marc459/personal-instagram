@@ -10,9 +10,11 @@
             "request": "launch",
             "runtimeExecutable": "node",
             "runtimeArgs": ["--nolazy", "-r", "ts-node/register/transpile-only"],
-      
-            "args": ["src/index.ts", "--", "--highlights"],
-            
+            "env": {
+              "SPOTIFY": "true"
+            },
+            "args": ["src/index.ts", "--", "--sp-sync"],
+
             "cwd": "${workspaceRoot}",
             "internalConsoleOptions": "openOnSessionStart",
             "skipFiles": ["<node_internals>/**", "node_modules/**"]

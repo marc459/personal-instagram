@@ -26,13 +26,13 @@ import { HandleSession } from './session';
 import { createInterface, Interface } from 'readline';
 
 class Instagram extends EventEmitter {
-  readonly config: ConnectionParams;
+  readonly config: InstagramConnectionParams;
   public ig: IgApiClientMQTT;
   public sessionHandlerInstance: HandleSession;
   public user: AccountRepositoryCurrentUserResponseUser;
   public std: Interface;
 
-  constructor(config: ConnectionParams) {
+  constructor(config: InstagramConnectionParams) {
     super();
     this.std = createInterface({
       input: process.stdin,
@@ -105,7 +105,7 @@ class Instagram extends EventEmitter {
     });
   }
 
-  private async login(config: ConnectionParams) {
+  private async login(config: InstagramConnectionParams) {
     try {
       if (
         typeof config.username === 'undefined' ||

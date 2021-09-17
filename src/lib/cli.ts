@@ -1,20 +1,23 @@
-import { readFileSync /*writeFileSync*/ } from 'fs';
-import { StickerBuilder } from 'instagram-private-api/dist/sticker-builder';
-import { resolve } from 'path';
-import { getImageBuffer, getImageColors } from '../util/image';
-import logger from '../util/logger';
-import Instagram from './instagram';
-import highlightData from '../../data/highlights.json';
-import compareImages from 'resemblejs/compareImages';
-import { getAllItemsFromFeed } from '../util/instagram';
+import { readFileSync /*writeFileSync*/ } from "fs";
+import { StickerBuilder } from "instagram-private-api/dist/sticker-builder";
+import { resolve } from "path";
+import { getImageBuffer, getImageColors } from "../util/image";
+import logger from "../util/logger";
+import Instagram from "./instagram";
+import highlightData from "../../data/instagram/highlights.json";
+import compareImages from "resemblejs/compareImages";
+import { getAllItemsFromFeed } from "../util/instagram";
+import Spotify from "./spotify";
+import { delay } from "../util/custom";
 
-export const setFridayProfileAvatar = async function (
+//-------------------//
+// Instagram section //
+//-------------------//
+export const instagramSetFridayProfileAvatar = async function (
   instagram: Instagram
 ): Promise<void> {
-  logger.debug('Generating friday profile picture...');
-  const fridayProfilePic = await instagram.generateFridayProfilePic(
-    instagram.user.username
-  );
+  logger.debug("Generating friday profile picture...");
+  const fridayProfilePic = await instagram.generateFridayProfilePic(instagram.user.username);
   try {
     await instagram.ig.account.changeProfilePicture(fridayProfilePic);
     logger.info(`Successfully changed to the friday's avatar!`);
@@ -23,13 +26,11 @@ export const setFridayProfileAvatar = async function (
   }
 };
 
-export const resetProfileAvatar = async function (
-  instagram: Instagram
-): Promise<void> {
-  logger.debug('Reseting profile picture...');
+export const instagramResetProfileAvatar = async function (instagram: Instagram): Promise<void> {
+  logger.debug("Reseting profile picture...");
   try {
     const profilePic = readFileSync(
-      resolve(__dirname, '..', '..', 'data', 'avatar.jpeg')
+      resolve(__dirname, "..", "..", "data", "instagram", "avatar.jpeg")
     );
     await instagram.ig.account.changeProfilePicture(profilePic);
     logger.info(`Successfully reset profile picture!`);
@@ -38,14 +39,10 @@ export const resetProfileAvatar = async function (
   }
 };
 
-export const uploadHistory = async function (
-  instagram: Instagram
-): Promise<void> {
-  logger.debug('Uploading history...');
+export const instagramUploadHistory = async function (instagram: Instagram): Promise<void> {
+  logger.debug("Uploading history...");
   try {
-    const file = readFileSync(
-      resolve(__dirname, '..', '..', 'data', 'avatar.jpeg')
-    );
+    const file = readFileSync(resolve(__dirname, "..", "..", "data", "instagram", "avatar.jpeg"));
     await instagram.ig.publish.story({
       file,
       // this creates a new config
@@ -53,42 +50,42 @@ export const uploadHistory = async function (
         // these are all supported stickers
         .add(
           StickerBuilder.hashtag({
-            tagName: 'insta'
+            tagName: "insta",
           }).center()
         )
         .add(
           StickerBuilder.mention({
-            userId: instagram.ig.state.cookieUserId
+            userId: instagram.ig.state.cookieUserId,
           }).center()
         )
         .add(
           StickerBuilder.question({
-            question: 'My Question'
+            question: "My Question",
           }).scale(0.5)
         )
         .add(
           StickerBuilder.question({
-            question: 'Music?',
-            questionType: 'text'
+            question: "Music?",
+            questionType: "text",
           })
         )
         .add(
           StickerBuilder.poll({
-            question: 'Question',
-            tallies: [{ text: 'Left' }, { text: 'Right' }]
+            question: "Question",
+            tallies: [{ text: "Left" }, { text: "Right" }],
           })
         )
         .add(
           StickerBuilder.quiz({
-            question: 'Question',
-            options: ['0', '1', '2', '3'],
-            correctAnswer: 1
+            question: "Question",
+            options: ["0", "1", "2", "3"],
+            correctAnswer: 1,
           })
         )
         .add(
           StickerBuilder.slider({
-            question: 'Question',
-            emoji: '❤'
+            question: "Question",
+            emoji: "❤",
           })
         )
 
@@ -104,14 +101,14 @@ export const uploadHistory = async function (
         // you can also set different values for the position and dimensions
         .add(
           StickerBuilder.hashtag({
-            tagName: 'insta',
+            tagName: "insta",
             width: 0.5,
             height: 0.5,
             x: 0.5,
-            y: 0.5
+            y: 0.5,
           })
         )
-        .build()
+        .build(),
     });
     logger.info(`Successfully uploaded the history!`);
   } catch (error) {
@@ -120,16 +117,15 @@ export const uploadHistory = async function (
   }
 };
 
-export const feedTest = async function (instagram: Instagram): Promise<void> {
-  logger.debug('Getting last 3 feed pictures...');
+export const instagramFeedTest = async function (instagram: Instagram): Promise<void> {
+  logger.debug("Getting last 3 feed pictures...");
   try {
-    const feed = (
-      await instagram.ig.feed.user(instagram.ig.state.cookieUserId).items()
-    ).slice(0, 3);
+    const feed = (await instagram.ig.feed.user(instagram.ig.state.cookieUserId).items()).slice(
+      0,
+      3
+    );
     feed.forEach(async (item) => {
-      const color = await getImageColors(
-        item.image_versions2.candidates[0].url
-      );
+      const color = await getImageColors(item.image_versions2.candidates[0].url);
       console.log(color, item.image_versions2.candidates[0].url);
     });
   } catch (error) {
@@ -137,45 +133,35 @@ export const feedTest = async function (instagram: Instagram): Promise<void> {
   }
 };
 
-export const highlights = async function (instagram: Instagram): Promise<void> {
-  logger.debug('Getting highlights...');
+export const instagramHighlights = async function (instagram: Instagram): Promise<void> {
+  logger.debug("Getting highlights...");
   try {
     const highlights = await instagram.ig.highlights.highlightsTray(
       instagram.ig.state.cookieUserId
     );
-    const profilePic = await instagram
-      .getProfilePic(instagram.user.username)
-      .then(getImageBuffer);
-    const delay = (m) => new Promise((resolve) => setTimeout(resolve, m));
+    const profilePic = await instagram.getProfilePic(instagram.user.username).then(getImageBuffer);
     const profileColor = await getImageColors(profilePic);
     for (let i = 0; i < highlights.tray.length; i++) {
       const t = highlights.tray[i];
       const data = highlightData.find((d) => d.id === t.id);
-      if (typeof data !== 'undefined') {
+      if (typeof data !== "undefined") {
         logger.debug(`Generating new ${t.title} highlight cover...`);
         let number;
         if (/Friday #([0-9]+)/g.exec(t.title) !== null) {
           number = parseInt(/Friday #([0-9]+)/g.exec(t.title)![1]);
         }
-        const cloudImgBuffer = await getImageBuffer(
-          t.cover_media.cropped_image_version.url
-        );
+        const cloudImgBuffer = await getImageBuffer(t.cover_media.cropped_image_version.url);
         const localImgBuffer = await instagram.generateHighlightCover(
           profileColor,
           data.emoticon,
-          typeof number === 'number'
-            ? number +
-                (typeof process.env.NODE_FRIDAY_CRON === 'string' ? 1 : 0)
+          typeof number === "number"
+            ? number + (typeof process.env.NODE_FRIDAY_CRON === "string" ? 1 : 0)
             : undefined
         );
-        const compareResult = await compareImages(
-          cloudImgBuffer,
-          localImgBuffer,
-          {
-            scaleToSameSize: true,
-            ignore: 'antialiasing'
-          }
-        );
+        const compareResult = await compareImages(cloudImgBuffer, localImgBuffer, {
+          scaleToSameSize: true,
+          ignore: "antialiasing",
+        });
         // Check if Images are different
         if (compareResult.rawMisMatchPercentage > 0) {
           logger.debug(
@@ -185,49 +171,41 @@ export const highlights = async function (instagram: Instagram): Promise<void> {
             file: await instagram.generateHighlightCover(
               profileColor,
               data.emoticon,
-              typeof number === 'number'
-                ? number +
-                    (typeof process.env.NODE_FRIDAY_CRON === 'string' ? 1 : 0)
+              typeof number === "number"
+                ? number + (typeof process.env.NODE_FRIDAY_CRON === "string" ? 1 : 0)
                 : undefined
-            )
+            ),
           });
           await instagram.ig.request.send({
             url: `/api/v1/highlights/${t.id}/edit_reel/`,
-            method: 'POST',
+            method: "POST",
             form: instagram.ig.request.sign({
-              supported_capabilities_new: JSON.stringify(
-                instagram.ig.state.supportedCapabilities
-              ),
-              source: 'story_viewer_default',
-              added_media_ids: '[]',
+              supported_capabilities_new: JSON.stringify(instagram.ig.state.supportedCapabilities),
+              source: "story_viewer_default",
+              added_media_ids: "[]",
               _csrftoken: instagram.ig.state.cookieCsrfToken,
               _uid: instagram.ig.state.cookieUserId,
               _uuid: instagram.ig.state.uuid,
               cover: JSON.stringify({
                 upload_id,
-                crop_rect: '[0.0,0.0,1.0,1.0]'
+                crop_rect: "[0.0,0.0,1.0,1.0]",
               }),
               title:
-                typeof number === 'number'
+                typeof number === "number"
                   ? data.title.replace(
-                      '{COUNTER}',
+                      "{COUNTER}",
                       (
-                        number +
-                        (typeof process.env.NODE_FRIDAY_CRON === 'string'
-                          ? 1
-                          : 0)
+                        number + (typeof process.env.NODE_FRIDAY_CRON === "string" ? 1 : 0)
                       ).toString()
                     )
                   : data.title,
-              removed_media_ids: '[]'
-            })
+              removed_media_ids: "[]",
+            }),
           });
-          logger.debug('Highlight cover set successfully...');
+          logger.debug("Highlight cover set successfully...");
           await delay(Math.floor(Math.random() * 6000) + 2000);
         } else {
-          logger.debug(
-            `${t.title} highlight cover has same result as new. Skipping update...`
-          );
+          logger.debug(`${t.title} highlight cover has same result as new. Skipping update...`);
         }
       }
     }
@@ -236,24 +214,17 @@ export const highlights = async function (instagram: Instagram): Promise<void> {
   }
 };
 
-export const followers = async function (instagram: Instagram): Promise<void> {
-  const followersFeed = instagram.ig.feed.accountFollowers(
-    instagram.ig.state.cookieUserId
-  );
-  const followingFeed = instagram.ig.feed.accountFollowing(
-    instagram.ig.state.cookieUserId
-  );
-  const leastInteractedWith =
-    await instagram.ig.friendship.leastInteractedWith();
+export const instagramFollowers = async function (instagram: Instagram): Promise<void> {
+  const followersFeed = instagram.ig.feed.accountFollowers(instagram.ig.state.cookieUserId);
+  const followingFeed = instagram.ig.feed.accountFollowing(instagram.ig.state.cookieUserId);
+  const leastInteractedWith = await instagram.ig.friendship.leastInteractedWith();
 
   const followers = await getAllItemsFromFeed(followersFeed);
   const following = await getAllItemsFromFeed(followingFeed);
   // Making a new map of users username that follow you.
   const followersUsername = new Set(followers.map(({ username }) => username));
   // Filtering through the ones not verified and aren't following you.
-  const notFollowingYou = following.filter(
-    ({ username }) => !followersUsername.has(username)
-  );
+  const notFollowingYou = following.filter(({ username }) => !followersUsername.has(username));
   // Looping through and unfollowing each user
 
   const AskQuestion = (question) => {
@@ -269,12 +240,10 @@ export const followers = async function (instagram: Instagram): Promise<void> {
 Username ${user.username} (${user.full_name} https://www.instagram.com/${
       user.username
     }/) is not following you.
-    Has interacted with you: ${leastInteractedWith
-      .map((l) => l.pk)
-      .includes(user.pk)}.
+    Has interacted with you: ${leastInteractedWith.map((l) => l.pk).includes(user.pk)}.
     Do you want to remove this friend? [y/n] `);
-    if (['y', 'n'].includes(response as string)) {
-      if (response === 'y') {
+    if (["y", "n"].includes(response as string)) {
+      if (response === "y") {
         await instagram.ig.friendship.destroy(user.pk);
         console.log(`Successfully unfollowed ${user.username}!`);
       } else {
@@ -285,9 +254,58 @@ Username ${user.username} (${user.full_name} https://www.instagram.com/${
   instagram.std.close();
 };
 
-export const listenEvents = async function (
-  instagram: Instagram
-): Promise<void> {
+export const instagramListenEvents = async function (instagram: Instagram): Promise<void> {
   logger.debug(`Listening ${instagram.user.username}'s events...`);
   await instagram.listenEvents();
+};
+
+//-------------------//
+//  Spotify section  //
+//-------------------//
+export const spotifySync = async function (
+  spotify: Spotify,
+  pages?: SpotifyResponse<SpotifyApi.PlaylistTrackResponse>
+): Promise<void> {
+  const spotifyQueue = (await import("./queue/spotify")).default;
+  const spotifyCache: SpotifyApi.PlaylistTrackObject[] = JSON.parse(readFileSync(resolve(__dirname, "../../data/spotify/data.json"), {
+    encoding: "utf8"
+  }));
+  const playlistId = await (await spotify.cl.getUserPlaylists("g0da7bdi5cbu3lpgdspx27cb9")).body.items.filter(i => i.name === "Session music")[0].id;
+  const page = await spotify.cl.getPlaylistTracks(playlistId, {
+    offset: pages?.body.offset ?? 0,
+    limit: pages?.body.limit ?? 100,
+  });
+  if (typeof pages === "undefined") {
+    pages = page;
+  } else {
+    pages.body = {
+      ...pages.body,
+      items: pages.body.items.concat(page.body.items)
+    };
+  }
+
+  if (pages.body.offset + pages.body.limit < pages.body.total) {
+    pages.body.offset = pages.body.offset + pages.body.limit;
+    return await delay(200, () => spotifySync(spotify, pages));
+  }
+  logger.info(`Retrieved +${pages.body.items.length} songs in total!`);
+
+  for (let i = 0; i < spotifyCache.length; i++) {
+    const item = spotifyCache[i];
+    if (pages.body.items.filter((i: any) => i.track.id === item.track.id).length === 0) {
+      await delay(10);
+      const data = { data: item };
+      await spotifyQueue.add("remove", data);
+    }
+  }
+  for (let i = 0; i < pages.body.items.length; i++) {
+    const item = pages.body.items[i];
+    const data = { data: item };
+    if (i + 1 === pages.body.items.length) {
+      //@ts-ignore
+      data.last = true;
+    }
+    await delay(10);
+    await spotifyQueue.add("download", data);
+  }
 };
