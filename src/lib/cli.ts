@@ -1,4 +1,4 @@
-import { readFileSync /*writeFileSync*/ } from "fs";
+import { readFileSync } from "fs";
 import { StickerBuilder } from "instagram-private-api/dist/sticker-builder";
 import { resolve } from "path";
 import { getImageBuffer, getImageColors } from "../util/image";
@@ -155,7 +155,7 @@ export const instagramHighlights = async function (instagram: Instagram): Promis
           profileColor,
           data.emoticon,
           typeof number === "number"
-            ? number + (typeof process.env.NODE_FRIDAY_CRON === "string" ? 1 : 0)
+            ? number + (typeof process.env.NODE_FRIDAY_CRON !== "undefined" ? 1 : 0)
             : undefined
         );
         const compareResult = await compareImages(cloudImgBuffer, localImgBuffer, {
@@ -167,12 +167,13 @@ export const instagramHighlights = async function (instagram: Instagram): Promis
           logger.debug(
             `${t.title} highlight cover has ${compareResult.rawMisMatchPercentage}% difference. Updating...`
           );
+
           const { upload_id } = await instagram.ig.upload.photo({
             file: await instagram.generateHighlightCover(
               profileColor,
               data.emoticon,
               typeof number === "number"
-                ? number + (typeof process.env.NODE_FRIDAY_CRON === "string" ? 1 : 0)
+                ? number + (typeof process.env.NODE_FRIDAY_CRON !== "undefined" ? 1 : 0)
                 : undefined
             ),
           });
@@ -267,7 +268,7 @@ export const spotifySync = async function (
   pages?: SpotifyResponse<SpotifyApi.PlaylistTrackResponse>
 ): Promise<void> {
   const spotifyQueue = (await import("./queue/spotify")).default;
-  const spotifyCache: SpotifyApi.PlaylistTrackObject[] = JSON.parse(readFileSync(resolve(__dirname, "../../data/spotify/data.json"), {
+  const spotifyCache: SpotifyApi.TrackObjectFull[] = JSON.parse(readFileSync(resolve(__dirname, "../../data/spotify/data.json"), {
     encoding: "utf8"
   }));
   const playlistId = await (await spotify.cl.getUserPlaylists("g0da7bdi5cbu3lpgdspx27cb9")).body.items.filter(i => i.name === "Session music")[0].id;
@@ -292,9 +293,9 @@ export const spotifySync = async function (
 
   for (let i = 0; i < spotifyCache.length; i++) {
     const item = spotifyCache[i];
-    if (pages.body.items.filter((i: any) => i.track.id === item.track.id).length === 0) {
-      await delay(10);
-      const data = { data: item };
+    const data = { data: item };
+    if (pages.body.items.filter((i: any) => i.track.id === item.id).length === 0) {
+      delay(20);
       await spotifyQueue.add("remove", data);
     }
   }
@@ -305,7 +306,7 @@ export const spotifySync = async function (
       //@ts-ignore
       data.last = true;
     }
-    await delay(10);
+    await delay(50);
     await spotifyQueue.add("download", data);
   }
 };
