@@ -1,14 +1,18 @@
 import { readFileSync } from "fs";
 import { StickerBuilder } from "instagram-private-api/dist/sticker-builder";
-import { resolve } from "path";
 import { getImageBuffer, getImageColors } from "../util/image";
 import logger from "../util/logger";
 import Instagram from "./instagram";
-import highlightData from "../../data/instagram/highlights.json";
 import compareImages from "resemblejs/compareImages";
 import { getAllItemsFromFeed } from "../util/instagram";
 import Spotify from "./spotify";
 import { delay } from "../util/custom";
+
+const highlightData = JSON.parse(
+  readFileSync(process.cwd() + "/data/instagram/highlights.json", {
+    encoding: "utf8",
+  })
+);
 
 //-------------------//
 // Instagram section //
@@ -29,9 +33,7 @@ export const instagramSetFridayProfileAvatar = async function (
 export const instagramResetProfileAvatar = async function (instagram: Instagram): Promise<void> {
   logger.debug("Reseting profile picture...");
   try {
-    const profilePic = readFileSync(
-      resolve(__dirname, "..", "..", "data", "instagram", "avatar.jpeg")
-    );
+    const profilePic = readFileSync(process.cwd() + "/data/instagram/avatar.jpeg");
     await instagram.ig.account.changeProfilePicture(profilePic);
     logger.info(`Successfully reset profile picture!`);
   } catch (error) {
@@ -42,7 +44,7 @@ export const instagramResetProfileAvatar = async function (instagram: Instagram)
 export const instagramUploadHistory = async function (instagram: Instagram): Promise<void> {
   logger.debug("Uploading history...");
   try {
-    const file = readFileSync(resolve(__dirname, "..", "..", "data", "instagram", "avatar.jpeg"));
+    const file = readFileSync(process.cwd() + "/data/instagram/avatar.jpeg");
     await instagram.ig.publish.story({
       file,
       // this creates a new config
@@ -268,10 +270,14 @@ export const spotifySync = async function (
   pages?: SpotifyResponse<SpotifyApi.PlaylistTrackResponse>
 ): Promise<void> {
   const spotifyQueue = (await import("./queue/spotify")).default;
-  const spotifyCache: SpotifyApi.TrackObjectFull[] = JSON.parse(readFileSync(resolve(__dirname, "../../data/spotify/data.json"), {
-    encoding: "utf8"
-  }));
-  const playlistId = await (await spotify.cl.getUserPlaylists("g0da7bdi5cbu3lpgdspx27cb9")).body.items.filter(i => i.name === "Session music")[0].id;
+  const spotifyCache: SpotifyApi.TrackObjectFull[] = JSON.parse(
+    readFileSync(process.cwd() + "/data/spotify/data.json", {
+      encoding: "utf8",
+    })
+  );
+  const playlistId = await (
+    await spotify.cl.getUserPlaylists("g0da7bdi5cbu3lpgdspx27cb9")
+  ).body.items.filter((i) => i.name === "Session music")[0].id;
   const page = await spotify.cl.getPlaylistTracks(playlistId, {
     offset: pages?.body.offset ?? 0,
     limit: pages?.body.limit ?? 100,
@@ -281,7 +287,7 @@ export const spotifySync = async function (
   } else {
     pages.body = {
       ...pages.body,
-      items: pages.body.items.concat(page.body.items)
+      items: pages.body.items.concat(page.body.items),
     };
   }
 
