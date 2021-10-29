@@ -1,6 +1,6 @@
 import { Queue, Worker } from "bullmq";
 import logger from "../../util/logger";
-import { readFileSync, writeFileSync } from "fs";
+import { readFileSync, writeFileSync, existsSync, unlinkSync } from "fs";
 import { resolve } from "path";
 import { delay } from "../../util/custom";
 import { exec } from "child_process";
@@ -33,6 +33,18 @@ const spotifyWorker = new Worker("SpotifyDL", async ({ name, data: { data } }) =
                   reject(`exec error: ${error.message}`);
                 }
                 logger.info(`${parsedData.name} added to the folder ⚡`);
+                if (
+                  !existsSync(
+                    "/home/ubuntu/dj/" +
+                      parsedData.artists.map((a) => a.name).join(", ") +
+                      " - " +
+                      parsedData.name +
+                      ".mp3"
+                  )
+                ) {
+                  console.log("File does not exist! Retring...");
+                  return reject("File does not exist! Retring...");
+                }
                 spotifyCache.push({
                   id: parsedData.id,
                   name: parsedData.name,
@@ -60,28 +72,25 @@ const spotifyWorker = new Worker("SpotifyDL", async ({ name, data: { data } }) =
       try {
         logger.info(`${data.name} removing. Adding task...`);
         await new Promise((_resolve, reject) => {
-          exec(
-            "cd /home/ubuntu/dj && rm '" +
-              data.artists.map((a) => a.name).join(", ") +
-              " - " +
-              data.name +
-              ".mp3'",
-            (error, stdout, stderr) => {
-              if (error) {
-                return reject(`exec error: ${error.message}`);
-              }
-              logger.info(`${data.name} removed from the folder ⚡`);
-              spotifyCache.splice(
-                spotifyCache.findIndex((c) => c.id === data.id),
-                1
-              );
-              writeFileSync(
-                resolve(__dirname, "../../../data/spotify/data.json"),
-                JSON.stringify(spotifyCache)
-              );
-              _resolve(true);
-            }
+          writeFileSync(
+            resolve(__dirname, "../../../data/spotify/data.json"),
+            JSON.stringify(spotifyCache)
           );
+          unlinkSync("/home/ubuntu/dj/" +
+            data.artists.map((a) => a.name).join(", ") +
+            " - " +
+            data.name +
+          ".mp3");
+          logger.info(`${data.name} removed from the folder ⚡`);
+          spotifyCache.splice(
+            spotifyCache.findIndex((c) => c.id === data.id),
+            1
+          );
+          writeFileSync(
+            resolve(__dirname, "../../../data/spotify/data.json"),
+            JSON.stringify(spotifyCache)
+          );
+          _resolve(true);
         });
       } catch (error) {
         throw new Error(error.message);
