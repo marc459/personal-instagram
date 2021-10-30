@@ -34,7 +34,7 @@ class Instagram extends EventEmitter {
     });
     logger.debug("Initializing IgApiClientMQTT...");
     this.ig = withFbnsAndRealtime(new IgApiClient());
-    this.sessionHandlerInstance = new HandleSession();
+    this.sessionHandlerInstance = new HandleSession(config.username);
     logger.debug("IgApiClient has been initialized!");
     this.ig.friendship.leastInteractedWith = () => this.leastInteractedWith();
     this.login(config);

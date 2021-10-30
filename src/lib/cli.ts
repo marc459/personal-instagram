@@ -7,6 +7,7 @@ import compareImages from "resemblejs/compareImages";
 import { getAllItemsFromFeed } from "../util/instagram";
 import Spotify from "./spotify";
 import { delay } from "../util/custom";
+import { MusicRepositoryLyricsResponseRootObject } from "instagram-private-api/dist/responses/music.repository.lyrics.response";
 
 const highlightData = JSON.parse(
   readFileSync(process.cwd() + "/data/instagram/highlights.json", {
@@ -260,6 +261,21 @@ Username ${user.username} (${user.full_name} https://www.instagram.com/${
 export const instagramListenEvents = async function (instagram: Instagram): Promise<void> {
   logger.debug(`Listening ${instagram.user.username}'s events...`);
   await instagram.listenEvents();
+};
+
+export const instagramMusicTest = async function (instagram: Instagram, query: string): Promise<MusicRepositoryLyricsResponseRootObject | void> {
+  try {
+    let response = (await instagram.ig.feed.musicSearch(query).items())[0];
+    if (response.track.has_lyrics)
+    {
+      let lyrics = await instagram.ig.music.lyrics(response.track.id);
+      //@ts-ignore
+      lyrics.song = response.track.title;
+      return lyrics;
+    }
+  } catch (error) {
+
+  }
 };
 
 //-------------------//

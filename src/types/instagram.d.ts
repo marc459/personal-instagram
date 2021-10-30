@@ -9,7 +9,7 @@ declare global {
     /** The password to use with the login */
     password: string;
     /** The 2fa oath secret to generate code */
-    oath: string;
+    oath?: string;
   }
 }
 
