@@ -107,7 +107,6 @@ ipc.serve(function () {
           event: message.event,
           data: response
         }));
-        socket.destroy();
         break;
       case "sp-sync":
         await spotifySync(spotify);
@@ -116,6 +115,7 @@ ipc.serve(function () {
         logger.warn(`${message} argument not found!`);
         break;
     }
+    socket.destroy();
   });
 });
 

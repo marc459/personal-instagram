@@ -265,6 +265,7 @@ export const instagramListenEvents = async function (instagram: Instagram): Prom
 
 export const instagramMusicTest = async function (instagram: Instagram, query: string): Promise<MusicRepositoryLyricsResponseRootObject | void> {
   try {
+    logger.info(`Getting ${query}'s spotify lyrics.`)
     let response = (await instagram.ig.feed.musicSearch(query).items())[0];
     if (response.track.has_lyrics)
     {
