@@ -93,7 +93,6 @@ spotifyWorker.on("completed", async ({ name, data: { data, last } }) => {
     if (typeof last !== "undefined" && last === true) {
       await spotifyQueue.close();
       logger.debug("spotify queue finished!");
-      process.exit(0);
     }
   }
 });
